@@ -9,6 +9,67 @@ const initialEvent = {
   origin_as: "64500",
 };
 
+const testScenarios = [
+  {
+    name: "Normal announcement",
+    tone: "safe",
+    description: "A routine route announcement with a valid AS_PATH.",
+    event: {
+      event_type: "announcement",
+      prefix: "203.0.113.0/24",
+      as_path: "64510 64500",
+      origin_as: "64500",
+    },
+  },
+  {
+    name: "Unexpected origin",
+    tone: "alert",
+    description: "Announce a prefix from an ASN that is not in the prefix inventory.",
+    setup: "Requires an inventory record for 198.51.100.0/24 with origin AS64500.",
+    event: {
+      event_type: "announcement",
+      prefix: "198.51.100.0/24",
+      as_path: "64510 64599",
+      origin_as: "64599",
+    },
+  },
+  {
+    name: "RPKI-invalid route",
+    tone: "alert",
+    description: "Announce a ROA-covered prefix from an unauthorized origin ASN.",
+    setup: "Requires a ROA for 192.0.2.0/24, origin AS64500, max length 24.",
+    event: {
+      event_type: "announcement",
+      prefix: "192.0.2.0/24",
+      as_path: "64510 64599",
+      origin_as: "64599",
+    },
+  },
+  {
+    name: "Suspicious more-specific",
+    tone: "alert",
+    description: "Announce a /24 after its covering /16 is already active.",
+    setup: "Run the parent route first: 100.64.0.0/16 from AS64500.",
+    event: {
+      event_type: "announcement",
+      prefix: "100.64.10.0/24",
+      as_path: "64520 64599",
+      origin_as: "64599",
+    },
+  },
+  {
+    name: "Withdrawal",
+    tone: "warning",
+    description: "Remove a route from active routing state. Withdrawals do not need an origin ASN.",
+    event: {
+      event_type: "withdrawal",
+      prefix: "192.0.2.0/24",
+      as_path: "",
+      origin_as: "",
+    },
+  },
+];
+
 function formatTime(value) {
   if (!value) return "—";
   return new Date(Number(value) * 1000).toLocaleString();
@@ -92,6 +153,16 @@ function App() {
 
   const updateEvent = (field, value) => {
     setEvent((current) => ({ ...current, [field]: value }));
+  };
+
+  const loadScenario = (scenario) => {
+    setEvent((current) => ({
+      ...current,
+      ...scenario.event,
+      timestamp: Math.floor(Date.now() / 1000),
+    }));
+    setResult(null);
+    setError("");
   };
 
   const submit = async (formEvent) => {
@@ -286,6 +357,42 @@ function App() {
             )}
           </section>
         </div>
+
+        <section className="panel scenarios-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">GUIDED TEST CASES</p>
+              <h3>Try different anomaly scenarios</h3>
+            </div>
+            <span className="panel-tag">LOAD INTO CONSOLE</span>
+          </div>
+          <p className="scenarios-intro">
+            Select a scenario to populate the live test console, then choose
+            <strong> Run detection</strong>. Inventory and ROA scenarios need
+            their setup data loaded first.
+          </p>
+          <div className="scenario-grid">
+            {testScenarios.map((scenario) => (
+              <article className={`scenario-card ${scenario.tone}`} key={scenario.name}>
+                <div className="scenario-title">
+                  <strong>{scenario.name}</strong>
+                  <span className="pill">{scenario.tone}</span>
+                </div>
+                <p>{scenario.description}</p>
+                {scenario.setup && <small>{scenario.setup}</small>}
+                <button className="text-button scenario-button" onClick={() => loadScenario(scenario)}>
+                  Use example →
+                </button>
+              </article>
+            ))}
+          </div>
+          <div className="scenario-note">
+            <strong>Recommended order:</strong> normal announcement → unexpected
+            origin or RPKI-invalid route → more-specific route → withdrawal.
+            Check <span className="mono">Active routes</span> and{" "}
+            <span className="mono">Recent activity</span> after each test.
+          </div>
+        </section>
 
         <div className="lower-grid">
           <section className="panel">
