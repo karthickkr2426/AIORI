@@ -36,9 +36,9 @@ def load_model():
                 f"Trained model not found: {MODEL_PATH}"
             )
 
-        from xgboost import XGBClassifier
+        from xgboost import Booster
 
-        _model = XGBClassifier()
+        _model = Booster()
         _model.load_model(str(MODEL_PATH))
 
     return _model
@@ -70,17 +70,18 @@ def predict_anomaly(features: dict) -> dict:
             f"Missing required features: {', '.join(missing)}"
         )
 
-    # Preserve the exact feature order used during training.
-    import pandas as pd
+    # Preserve the exact feature order used during training without importing
+    # pandas into the deployed API bundle.
+    from xgboost import DMatrix
 
-    input_data = pd.DataFrame(
+    input_data = DMatrix(
         [[features[name] for name in FEATURES]],
-        columns=FEATURES,
+        feature_names=FEATURES,
     )
 
     model = load_model()
 
-    probability = float(model.predict_proba(input_data)[0][1])
+    probability = float(model.predict(input_data)[0])
     prediction = int(probability >= 0.5)
 
     return {
