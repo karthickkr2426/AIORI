@@ -231,6 +231,12 @@ function App() {
             tone={model?.available ? "success" : ""}
           />
         </section>
+        <p className="model-disclaimer">
+          On our current controlled synthetic benchmark, the model achieved
+          95.2% accuracy and a ROC-AUC score of 0.9942. These results represent
+          performance on our controlled benchmark and are not yet validated
+          against independently labelled real-world attacks.
+        </p>
 
         <div className="workspace-grid">
           <section className="panel detection-panel">
